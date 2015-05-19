@@ -1,4 +1,4 @@
-## Clone of Ruby China
+## This is the clone of Ruby China
 
 This is the source code of [Ruby China](http://ruby-china.org) website.
 
