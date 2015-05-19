@@ -1,4 +1,7 @@
 "zh-CN":
+  omniauth:
+    github: GitHub
+    twitter: Twitter
   mongoid:
     models:
       user: "用户"
@@ -22,6 +25,7 @@
         state: "状态"
         verified: "信任用户"
         company: "公司"
+        github: "GitHub"
         remember_me: 记住登陆状态
         current_password: 旧密码
       topic:
@@ -48,6 +52,9 @@
         url: 地址
         desc: 简单介绍
         site_node_id: 分类
+      exception_log:
+        title: 摘要
+        body: 详细内容
     errors:
       models:
         user: 用户

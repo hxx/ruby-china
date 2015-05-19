@@ -1,24 +1,34 @@
 # coding: utf-8
 require "redcarpet"
-module ApplicationHelper
-  def sanitize_topic(body)
-    sanitize body, :tags => %w(p br img h1 h2 h3 h4 blockquote pre code b i strong em strike u a ul ol li span), :attributes => %w(href src class title alt target rel)
-  end
 
-  def sanitize_reply(body)
-    sanitize body, :tags => %w(p br img h1 h2 h3 h4 blockquote pre code b i strong em strike u a ul ol li span), :attributes => %w(href src class title alt target rel data-floor)
+
+
+module ApplicationHelper
+  ALLOW_TAGS = %w(p br img h1 h2 h3 h4 h5 h6 blockquote pre code b i strong em table tr td tbody th strike del u a ul ol li span hr)
+  ALLOW_ATTRIBUTES = %w(href src class title alt target rel data-floor)
+  EMPTY_STRING = ''.freeze
+  
+  def sanitize_markdown(body)
+    # TODO: This method slow, 3.5ms per call in topic body
+    sanitize body, tags: ALLOW_TAGS, attributes: ALLOW_ATTRIBUTES
   end
 
   def notice_message
     flash_messages = []
 
     flash.each do |type, message|
-      type = :success if type == :notice
+      type = :success if type.to_sym == :notice
+      type = :danger if type.to_sym == :alert
       text = content_tag(:div, link_to("x", "#", :class => "close", 'data-dismiss' => "alert") + message, :class => "alert alert-#{type}")
       flash_messages << text if message
     end
 
     flash_messages.join("\n").html_safe
+  end
+  
+  def render_page_title
+    title = @page_title ? "#{SITE_NAME} | #{@page_title}" : SITE_NAME rescue "SITE_NAME"
+    content_tag("title", title, nil, false)
   end
 
   def controller_stylesheet_link_tag
@@ -34,7 +44,7 @@ module ApplicationHelper
   end
 
   def controller_javascript_include_tag
-    fname =
+    fname = ""
     case controller_name
     when "pages","topics","notes"
       fname = "#{controller_name}.js"
@@ -43,20 +53,6 @@ module ApplicationHelper
     end
     return "" if fname.blank?
     raw %(<script src="#{asset_path(fname)}" data-turbolinks-track></script>)
-  end
-
-  def markdown(str, options = {})
-    # XXX: the renderer instance should be a class variable
-
-    options[:hard_wrap] ||= false
-    options[:class] ||= ''
-    assembler = Redcarpet::Render::HTML.new(:hard_wrap => options[:hard_wrap]) # auto <br> in <p>
-
-    renderer = Redcarpet::Markdown.new(assembler, {
-      :autolink => true,
-      :fenced_code_blocks => true
-    })
-    content_tag(:div, sanitize(MarkdownConverter.convert(str)), :class => options[:class])
   end
 
   def admin?(user = nil)
@@ -70,32 +66,32 @@ module ApplicationHelper
   end
 
   def owner?(item)
-    return false if item.blank? or current_user.blank?
-    item.user_id == current_user.id
+    return false if item.blank? || current_user.blank?
+    if item.is_a?(User)
+      item.id == current_user.id
+    else
+      item.user_id == current_user.id
+    end
   end
 
   def timeago(time, options = {})
-    options[:class]
     options[:class] = options[:class].blank? ? "timeago" : [options[:class],"timeago"].join(" ")
-    content_tag(:abbr, "", options.merge(:title => time.iso8601)) if time
+    options.merge!(title: time.iso8601)
+    content_tag(:abbr, EMPTY_STRING, class: options[:class], title: time.iso8601) if time
   end
 
   def render_page_title
     site_name = Setting.app_name
-    title = @page_title ? "#{site_name} | #{@page_title}" : site_name rescue "SITE_NAME"
+    title = @page_title ? "#{@page_title} &raquo; #{site_name}" : site_name rescue "SITE_NAME"
     content_tag("title", title, nil, false)
   end
 
   # 去除区域里面的内容的换行标记
   def spaceless(&block)
     data = with_output_buffer(&block)
-    data = data.gsub(/\n\s+/,"")
+    data = data.gsub(/\n\s+/, EMPTY_STRING)
     data = data.gsub(/>\s+</,"><")
     sanitize data
-  end
-
-  def facebook_enable
-    Setting.facebook_enable
   end
 
   MOBILE_USER_AGENTS =  'palm|blackberry|nokia|phone|midp|mobi|symbian|chtml|ericsson|minimo|' +
@@ -118,9 +114,79 @@ module ApplicationHelper
     lang_list = []
     LANGUAGES_LISTS.each do |k, l|
       lang_list << content_tag(:li) do
-        content_tag(:a, raw(k), id: l, class: 'insert_code', data: { content: l })
+        link_to raw(k), '#', data: { lang: l }
       end
     end
-    raw lang_list.join("")
+    raw lang_list.join(EMPTY_STRING)
+  end
+
+  def birthday_tag
+    t = Time.now
+    if t.month == 10 && t.day == 28
+      age = t.year - 2011
+      title = "Ruby China 创立 #{age} 周年纪念日"
+      html = []
+      html << "<div style='text-align:center;margin-bottom:20px; line-height:200%;'>"
+      %W(dancers beers cake birthday crown gift crown birthday cake beers dancers).each do |name|
+        html << image_tag(asset_path("assets/emojis/#{name}.png"), class: "emoji", title: title)
+      end
+      html << "<br />"
+      html << title
+      html << "</div>"
+      raw html.join(" ")
+    end
+  end
+
+  def random_tips
+    tips = SiteConfig.tips
+    return EMPTY_STRING if tips.blank?
+    tips.split("\n").sample
+  end
+
+  def icon_tag(name, opts = {})
+    label = EMPTY_STRING
+    if opts[:label]
+      label = %(<span>#{opts[:label]}</span>)
+    end
+    raw "<i class='fa fa-#{name}'></i> #{label}"
+  end
+  
+  def memory_cache(*keys)
+    return yield if !Rails.application.config.cache_classes
+    
+    $memory_store.fetch(keys) { yield }
+  end
+
+  def stylesheet_link_tag_with_cached(name)
+    memory_cache("stylesheets_link_tag",name) do
+      stylesheet_link_tag(name, 'data-turbolinks-track' => true)
+    end
+  end
+  
+  def javascript_include_tag_with_cached(name)
+    memory_cache("javascript_include_tag", name) do
+      javascript_include_tag(name, 'data-turbolinks-track' => true)
+    end
+  end
+  
+  def cached_asset_path(name)
+    memory_cache("asset_path", name) do
+      asset_path(name)
+    end
+  end
+  
+  def render_list(opts = {})
+    list = []
+    yield(list)
+    items = []
+    list.each do |link|
+      item_class = EMPTY_STRING
+      url = link.match(/href=(["'])(.*?)(\1)/)[2] rescue nil
+      if url && current_page?(url) || ( @current && @current.include?(url) )
+        item_class = "active"
+      end
+      items << content_tag("li", raw(link), class: item_class)
+    end
+    content_tag("ul", raw(items.join(EMPTY_STRING)), opts)
   end
 end

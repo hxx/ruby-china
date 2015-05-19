@@ -7,37 +7,61 @@ Status](https://secure.travis-ci.org/ruby-china/ruby-china.png?branch=master&.pn
 
 ## Requirements
 
-* Ruby 1.9.3 +
+* Ruby 2.2.0 +
 * Memcached 1.4 +
-* Redis 2.2+
+* Redis 2.2 +
 * MongoDb 2.4.4 +
 * ImageMagick 6.5+
-* libpng
 
-## Install
+## Install in development
 
-```bash
-git clone git://github.com/ruby-china/ruby-china.git
-cd ruby-china
-ruby setup.rb
-# ensure that memcached has started up
-rails s
-```
 
-## Gemfile Source
-
-By default bundler installs gems using the ruby.taobao.org source, if you'd rather use the official one, set environment variable `USE_OFFICIAL_GEM_SOURCE`:
-
-```
-USE_OFFICIAL_GEM_SOURCE=1
-```
-
-## Start Sidekiq service
+**Mac OS X, use Homebrew**
 
 ```bash
-# Sidekiq
-# ensure that redis has started up
-bundle exec sidekiq -C config/sidekiq.yml
+$ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+$ brew install memcached
+$ brew install redis
+$ brew install mongodb
+$ brew install imagemagick
+```
+
+**Ubuntu***
+
+```bash
+$ sudo apt-get install memcached mongodb redis-server imagemagick
+```
+
+```bash
+$ git clone https://github.com/ruby-china/ruby-china.git
+$ cd ruby-china
+$ ./bin/setup
+Checking Package Dependencies...
+--------------------------------------------------------------------------------
+MongoDB 2.0+                                                               [Yes]
+Redis 2.0+                                                                 [Yes]
+Memcached 1.4+                                                             [Yes]
+ImageMagick 6.5+                                                           [Yes]
+--------------------------------------------------------------------------------
+
+Installing dependencies
+--------------------------------------------------------------------------------
+The Gemfile's dependencies are satisfied
+--------------------------------------------------------------------------------
+
+Configure
+--------------------------------------------------------------------------------
+Your MongoDB host (default: 127.0.0.1:27017): 
+Your Redis host (default: 127.0.0.1:6379):
+--------------------------------------------------------------------------------
+
+Seed default data...                                                      [Done]
+
+== Removing old logs and tempfiles ==
+
+Ruby China Successfully Installed.
+
+$ rails s
 ```
 
 ## Testing
@@ -46,25 +70,6 @@ bundle exec sidekiq -C config/sidekiq.yml
 bundle exec rspec spec
 ```
 
-to prepare all the config files and start essential services.
-
-## JavaScript Testing
-
-Open `/specs` in the browser to see the test result. For example, if your
-rails starts at `localhost:3000`, visit http://localhost:3000/specs
-
-### Headless Testing
-
-First install [PhantomJS](http://phantomjs.org/), then run following command:
-
-```bash
-RAILS_ENV=test bundle exec rake spec:javascript
-```
-
-## Apply Google JSAPI
-
-* http://code.google.com/intl/zh-CN/apis/loader/signup.html
-
 ## Contributors
 
 * [Contributors](https://github.com/ruby-china/ruby-china/contributors)
@@ -72,13 +77,20 @@ RAILS_ENV=test bundle exec rake spec:javascript
 ## Thanks
 
 * [Twitter Bootstrap](https://twitter.github.com/bootstrap)
-* [GentleFace Icons](http://www.gentleface.com/free_icon_set.html)
+* [Font Awesome](http://fortawesome.github.io/Font-Awesome/icons/)
 
 Forked from [Homeland Project](https://github.com/huacnlee/homeland)
+Theme from [Mediom](https://github.com/huacnlee/mediom)
+
+## Sites
+
+* [Ruby China](https://ruby-china.org)
+* [36kr](http://36kr.com/)
+* [Testhome](http://testerhome.com/)
 
 ## License
 
-Copyright (c) 2011-2014 Ruby China
+Copyright (c) 2011-2015 Ruby China
 
 Released under the MIT license:
 

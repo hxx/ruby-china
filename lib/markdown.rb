@@ -19,13 +19,17 @@ module Redcarpet
                                link_attributes: {target: '_blank'}))
       end
 
-      
+
       def block_code(code, language)
         language.downcase! if language.is_a?(String)
         html = super(code, language)
         # 将最后行的 "\n\n" 替换成回 "\n", rouge 0.3.2 的 Bug 导致
-        html.gsub!("\n</pre>", "</pre>")
+        html.gsub!(/([\n]+)<\/code>/, "</code>")
         html
+      end
+
+      def table(header, body)
+        %(<table class="table table-striped">#{header}#{body}</table>)
       end
 
       def autolink(link, link_type)
@@ -42,7 +46,7 @@ module Redcarpet
             return link
           end
           # Fix Chinese neer the URL
-          bad_text = link.match(/[^\w:\/\-\~\,\$\!\.=\?&#+\|\%]+/im).to_s
+          bad_text = link.match(/[^\w:@\/\-\~\,\$\!\.=\?&#+\|\%]+/im).to_s
           link.gsub!(bad_text, '')
           "<a href=\"#{link}\" rel=\"nofollow\" target=\"_blank\">#{link}</a>#{bad_text}"
         end
@@ -239,6 +243,7 @@ class MarkdownTopicConverter < MarkdownConverter
         autolink: true,
         fenced_code_blocks: true,
         strikethrough: true,
+        tables: true,
         space_after_headers: true,
         disable_indented_code_blocks: true,
         no_intra_emphasis: true

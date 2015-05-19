@@ -1,12 +1,15 @@
 # coding: utf-8
-require "will_paginate"
-require "will_paginate/collection"
+require 'will_paginate'
+require 'will_paginate/collection'
 
 module Mongoid
   module WillPaginate
     extend ActiveSupport::Concern
-    
+
     def paginate(options = {})
+      options[:page] = options[:page].to_i
+      options[:page] = 1 if options[:page] == 0
+
       options = base_options options
 
       ::WillPaginate::Collection.create(options[:page], options[:per_page]) do |pager|

@@ -11,13 +11,12 @@ class Site
   field :desc
 
   belongs_to :site_node
-  counter_cache :name => :site_node, :inverse_of => :sites
   belongs_to :user
 
   validates_presence_of :url, :name, :site_node_id
 
-  index :url => 1
-  index :site_node_id => 1
+  index url: 1
+  index site_node_id: 1
 
   after_save :update_cache_version
   after_destroy :update_cache_version

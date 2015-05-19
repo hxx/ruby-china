@@ -1,13 +1,11 @@
 defaults: &defaults
-  options:
-    identity_map_enabled: true
 
 development:
   <<: *defaults
   sessions:
     default:
       hosts:
-        - SETUP_DEVELOPMENT_HOST
+        - 127.0.0.1:27017
       database: ruby_china_dev
 
 test:
@@ -15,7 +13,7 @@ test:
   sessions:
     default:
       hosts:
-        - SETUP_DEVELOPMENT_HOST
+        - 127.0.0.1:27017
       database: ruby_china_test
 
 # set these environment variables on your prod server
@@ -26,3 +24,5 @@ production:
       hosts:
         - 127.0.0.1:27017
       database: ruby_china
+      options:
+        pool_size: 64

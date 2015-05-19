@@ -1,143 +1,161 @@
-require 'spec_helper'
+require 'rails_helper'
 
-describe RubyChina::API, "notifications" do
-  let(:user) { Factory(:user) }
-
-  before(:each) do
-    user.update_private_token
-  end
-
+describe "API V3", "notifications", :type => :request do
   describe "GET /api/notifications.json" do
     it "must require token" do
-      get "/api/v2/notifications.json"
-      response.status.should == 401
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(401)
     end
 
     it "should be ok" do
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      login_user!
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
     end
 
     it "should get notification for a mention in a reply" do
-      topic = Factory :topic, :user => user
-      reply = Factory :reply, :topic => topic, :user => user, :body => "Test to mention user"
-      mention = Factory :notification_mention, :user => user, :mentionable => reply
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
-      json = JSON.parse(response.body)
-      json[0]["read"].should be_false
-      json[0]["mention"]["body"].should == "Test to mention user"
-      json[0]["mention"]["topic_id"].should == topic.id
-      json[0]["mention"]["user"]["login"].should == user.login
+      topic = Factory :topic, :user => current_user
+      reply = Factory :reply, :topic => topic, :user => current_user, :body => "Test to mention user"
+      mention = Factory :notification_mention, :user => current_user, :mentionable => reply
+      login_user!
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
+      expect(json["notifications"][0]["read"]).to eq false
+      expect(json["notifications"][0]["mention_type"]).to eq "Reply"
+      expect(json["notifications"][0]["mention"]["body_html"]).to eq("<p>Test to mention user</p>")
+      expect(json["notifications"][0]["mention"]["topic_id"]).to eq(topic.id)
+      expect(json["notifications"][0]["actor"]["login"]).to eq(current_user.login)
     end
 
     it "should get notification for a reply" do
-      topic = Factory :topic, :user => user
-      reply = Factory :reply, :topic => topic, :user => user, :body => "Test to reply user"
-      notification = Factory :notification_topic_reply, :user => user, :reply => reply
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      login_user!
+      topic = Factory :topic, :user => current_user
+      reply = Factory :reply, :topic => topic, :user => current_user, :body => "Test to reply user"
+      notification = Factory :notification_topic_reply, :user => current_user, :reply => reply
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json[0]["read"].should be_false
-      json[0]["reply"]["body"].should == "Test to reply user"
-      json[0]["reply"]["topic_id"].should == topic.id
-      json[0]["reply"]["user"]["login"].should == user.login
+      expect(json["notifications"][0]["read"]).to eq false
+      expect(json["notifications"][0]["reply"]["body_html"]).to eq("<p>Test to reply user</p>")
+      expect(json["notifications"][0]["reply"]["topic_id"]).to eq(topic.id)
+      expect(json["notifications"][0]["actor"]["login"]).to eq(current_user.login)
     end
 
     it "should get notification for a mention in a topic" do
+      login_user!
       node = Factory :node
-      topic = Factory :topic, :user => user, :node => node, :title => "Test to mention user in a topic"
-      mention = Factory :notification_mention, :user => user, :mentionable => topic
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      topic = Factory :topic, :user => current_user, :node => node, :title => "Test to mention user in a topic"
+      mention = Factory :notification_mention, :user => current_user, :mentionable => topic
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json[0]["read"].should be_false
-      json[0]["mention"]["title"].should == "Test to mention user in a topic"
-      json[0]["mention"]["node_name"].should == node.name
-      json[0]["mention"]["user"]["login"].should == user.login
+      expect(json["notifications"][0]["read"]).to eq false
+      expect(json["notifications"][0]["mention_type"]).to eq "Topic"
+      expect(json["notifications"][0]["mention"]["title"]).to eq("Test to mention user in a topic")
+      expect(json["notifications"][0]["mention"]["node_name"]).to eq(node.name)
+      expect(json["notifications"][0]["actor"]["login"]).to eq(current_user.login)
     end
 
     it "should return a list of notifications of the current user" do
-      topic = Factory :topic, :user => user
-      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => user, :body => "Test to mention user #{i}" }
-      mentions = (0...10).map {|i| Factory :notification_mention, :user => user, :mentionable => replies[i] }
+      login_user!
+      topic = Factory :topic, :user => current_user
+      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => current_user, :body => "Test to mention user #{i}" }
+      mentions = (0...10).map {|i| Factory :notification_mention, :user => current_user, :mentionable => replies[i] }
 
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json.should have(10).items
-      json.each_with_index {|item, i| item["mention"]["body"] == replies[i].body }
+      expect(json["notifications"].size).to eq(10)
+      json["notifications"].each_with_index {|item, i| item["mention"]["body"] == replies[i].body }
 
-      get "/api/v2/notifications.json", :token => user.private_token, :per_page => 5
-      response.status.should == 200
+      get "/api/v3/notifications.json", limit: 5
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json.should have(5).items
-      json.each_with_index {|item, i| item["mention"]["body"] == replies[i].body }
+      expect(json["notifications"].size).to eq(5)
+      json["notifications"].each_with_index {|item, i| item["mention"]["body"] == replies[i].body }
 
-      get "/api/v2/notifications.json", :token => user.private_token, :per_page => 5, :page => 2
-      response.status.should == 200
+      get "/api/v3/notifications.json", offset: 5, limit: 5
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json.should have(5).items
-      json.each_with_index {|item, i| item["mention"]["body"] == replies[i + 5].body }
+      expect(json["notifications"].size).to eq(5)
+      json["notifications"].each_with_index {|item, i| item["mention"]["body"] == replies[i + 5].body }
+    end
+  end
+  
+  describe 'POST /api/notifications/read.json' do
+    it "must require token" do
+      post "/api/v3/notifications/read.json", ids: [1,2]
+      expect(response.status).to eq(401)
+    end
+    
+    it 'should work' do
+      login_user!
+      topic = Factory :topic, :user => current_user
+      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => current_user, :body => "Test to mention user #{i}" }
+      mentions = (0...10).map {|i| Factory :notification_mention, :user => current_user, :mentionable => replies[i] }
+      post "/api/v3/notifications/read.json", ids: current_user.notifications.pluck(:id)
+      expect(response.status).to eq 201
+      current_user.notifications.each do |item|
+        expect(item.reload.read).to eq true
+      end
     end
   end
 
-  describe "DELETE /api/notifications.json" do
+  describe "DELETE /api/notifications/all.json" do
     it "must require token" do
-      delete "/api/v2/notifications.json"
-      response.status.should == 401
+      delete "/api/v3/notifications/all.json"
+      expect(response.status).to eq(401)
     end
 
     it "should delete all notifications of current user" do
-      topic = Factory :topic, :user => user
-      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => user, :body => "Test to mention user #{i}" }
-      mentions = (0...10).map {|i| Factory :notification_mention, :user => user, :mentionable => replies[i] }
+      login_user!
+      topic = Factory :topic, :user => current_user
+      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => current_user, :body => "Test to mention user #{i}" }
+      mentions = (0...10).map {|i| Factory :notification_mention, :user => current_user, :mentionable => replies[i] }
 
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
+      expect(json["notifications"].size).to eq(10)
+
+      delete "/api/v3/notifications/all.json"
+      expect(response.status).to eq(200)
+
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json.should have(10).items
-
-      delete "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
-      response.body.should == 'true'
-
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
-      json = JSON.parse(response.body)
-      json.should be_empty
+      expect(json["notifications"]).to be_empty
     end
   end
 
   describe "DELETE /api/notifications/:id.json" do
     it "must require token" do
-      delete "/api/v2/notifications/1.json"
-      response.status.should == 401
+      delete "/api/v3/notifications/1.json"
+      expect(response.status).to eq(401)
     end
 
     it "should delete the specified notification of current user" do
-      topic = Factory :topic, :user => user
-      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => user, :body => "Test to mention user #{i}" }
-      mentions = (0...10).map {|i| Factory :notification_mention, :user => user, :mentionable => replies[i] }
+      login_user!
+      topic = Factory :topic, :user => current_user
+      replies = (0...10).map {|i| Factory :reply, :topic => topic, :user => current_user, :body => "Test to mention user #{i}" }
+      mentions = (0...10).map {|i| Factory :notification_mention, :user => current_user, :mentionable => replies[i] }
 
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json.should have(10).items
+      expect(json["notifications"].size).to eq(10)
 
       deleted_ids = mentions.map(&:id).select(&:odd?)
 
       deleted_ids.each do |i|
-        delete "/api/v2/notifications/#{i}.json", :token => user.private_token
-        response.status.should == 200
-        response.body.should == 'true'
+        delete "/api/v3/notifications/#{i}.json"
+        expect(response.status).to eq(200)
       end
 
-      get "/api/v2/notifications.json", :token => user.private_token
-      response.status.should == 200
+      get "/api/v3/notifications.json"
+      expect(response.status).to eq(200)
       json = JSON.parse(response.body)
-      json.should have(10 - deleted_ids.size).items
-      json.map {|item| deleted_ids.should_not include(item["id"]) }
+      expect(json["notifications"].size).to eq(10 - deleted_ids.size)
+      json["notifications"].map {|item| expect(deleted_ids).not_to include(item["id"]) }
     end
   end
 end

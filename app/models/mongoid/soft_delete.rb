@@ -7,7 +7,7 @@ module Mongoid
     included do
       field :deleted_at, type: DateTime
 
-      default_scope where(deleted_at: nil)
+      default_scope -> { where(deleted_at: nil) }
       alias_method :destroy!, :destroy
     end
 
@@ -22,7 +22,7 @@ module Mongoid
       end
       freeze
     end
-    
+
     def deleted?
       !self.deleted_at.blank?
     end
